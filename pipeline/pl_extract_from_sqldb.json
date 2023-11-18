@@ -25,7 +25,7 @@
 					"source": {
 						"type": "AzureSqlSource",
 						"sqlReaderQuery": {
-							"value": "@activity('get_task_parameter').output.firstRow.src_sql",
+							"value": "@concat(activity('get_task_parameter').output.firstRow.src_sql, ' where ModifiedDate > ', '''',activity('get_last_rundate').output.firstRow.get_last_rundate, '''')",
 							"type": "Expression"
 						},
 						"queryTimeout": "02:00:00",
@@ -80,7 +80,7 @@
 				"type": "Lookup",
 				"dependsOn": [
 					{
-						"activity": "update control table running",
+						"activity": "get_last_rundate",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -207,7 +207,7 @@
 				"type": "SqlServerStoredProcedure",
 				"dependsOn": [
 					{
-						"activity": "update control table_success",
+						"activity": "update_last_rundate",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -507,6 +507,98 @@
 						},
 						"task_status": {
 							"value": "error",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "get_last_rundate",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "update control table running",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[control].[sp_get_last_run_date]",
+						"storedProcedureParameters": {
+							"job": {
+								"type": "String",
+								"value": "load_customer"
+							},
+							"task": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().Pipeline",
+									"type": "Expression"
+								}
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "Ds_generic_sql_tables",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "update_last_rundate",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "update control table_success",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "[control].[sp_update_last_run_date]",
+					"storedProcedureParameters": {
+						"job": {
+							"value": "load_customer",
+							"type": "String"
+						},
+						"last_run_date": {
+							"value": {
+								"value": "@pipeline().TriggerTime",
+								"type": "Expression"
+							},
+							"type": "DateTime"
+						},
+						"task": {
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
 							"type": "String"
 						}
 					}
