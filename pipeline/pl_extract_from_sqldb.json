@@ -1,11 +1,18 @@
 {
-	"name": "pl_extract_sql_db",
+	"name": "pl_extract_from_sqldb",
 	"properties": {
 		"activities": [
 			{
 				"name": "extract from ssql",
 				"type": "Copy",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "get_task_parameter",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"timeout": "0.12:00:00",
 					"retry": 0,
@@ -17,7 +24,10 @@
 				"typeProperties": {
 					"source": {
 						"type": "AzureSqlSource",
-						"sqlReaderQuery": "select * from saleslt.customer",
+						"sqlReaderQuery": {
+							"value": "@activity('get_task_parameter').output.firstRow.src_sql",
+							"type": "Expression"
+						},
 						"queryTimeout": "02:00:00",
 						"partitionOption": "None"
 					},
@@ -53,11 +63,74 @@
 						"referenceName": "Ds_Adls_generic_csv",
 						"type": "DatasetReference",
 						"parameters": {
-							"directory": "customer",
-							"file_name": "customer.csv"
+							"directory": {
+								"value": "@activity('get_task_parameter').output.firstRow.tgt_folder",
+								"type": "Expression"
+							},
+							"file_name": {
+								"value": "@activity('get_task_parameter').output.firstRow.tgt_filename",
+								"type": "Expression"
+							}
 						}
 					}
 				]
+			},
+			{
+				"name": "get_task_parameter",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderStoredProcedureName": "[control].[sp_task_parameters]",
+						"storedProcedureParameters": {
+							"job": {
+								"type": "String",
+								"value": "load_customer"
+							},
+							"job_id": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().RunId",
+									"type": "Expression"
+								}
+							},
+							"task": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().Pipeline",
+									"type": "Expression"
+								}
+							},
+							"task_id": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().RunId",
+									"type": "Expression"
+								}
+							},
+							"task_sequence": {
+								"type": "Int32",
+								"value": "1"
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "Ds_generic_sql_tables",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": true
+				}
 			}
 		],
 		"folder": {
