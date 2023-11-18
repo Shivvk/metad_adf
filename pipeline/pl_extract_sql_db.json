@@ -1,0 +1,9 @@
+{
+	"name": "pl_extract_sql_db",
+	"properties": {
+		"folder": {
+			"name": "etl_metadata"
+		},
+		"annotations": []
+	}
+}
