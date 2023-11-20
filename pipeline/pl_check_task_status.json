@@ -1,0 +1,133 @@
+{
+	"name": "pl_check_task_status",
+	"properties": {
+		"activities": [
+			{
+				"name": "get_enviornment_variable",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "enviorment variable \nSelect * from\n(\nselect parameter, value\nfrom config.enviornment) as i\npivot \n(\n max(value) for parameter in (subscription,rg,adf)) as o",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "Ds_generic_sql_tables",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "Until1",
+				"type": "Until",
+				"dependsOn": [
+					{
+						"activity": "get_enviornment_variable",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@not(equals(variables('p_task_status'), 'InProgress'))",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Web1",
+							"type": "WebActivity",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"url": {
+									"value": "@concat(\n'https://management.azure.com/subscriptions/',\nactivity('get_enviornment_variable').output.firstRow.subscription,\n'/resourceGroups/',\nactivity('get_enviornment_variable').output.firstRow.rg,\n'/providers/Microsoft.DataFactory/factories/',\nactivity('get_enviornment_variable').output.firstRow.adf,\n'/pipelines/',\npipeline().parameters.p_run_id,\n'/createRun?api-version=2018-06-01'\n)",
+									"type": "Expression"
+								},
+								"method": "GET",
+								"authentication": {
+									"type": "MSI",
+									"resource": "https://management.azure.com"
+								}
+							}
+						},
+						{
+							"name": "set_task_status",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Web1",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "p_task_status",
+								"value": {
+									"value": "@activity('Web1').output.status",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "task_fail",
+							"type": "Fail",
+							"dependsOn": [
+								{
+									"activity": "Web1",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"message": "failed",
+								"errorCode": "failed"
+							}
+						}
+					],
+					"timeout": "0.12:00:00"
+				}
+			}
+		],
+		"parameters": {
+			"p_run_id": {
+				"type": "string"
+			},
+			"p_job": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"p_task_status": {
+				"type": "String"
+			}
+		},
+		"annotations": []
+	}
+}
