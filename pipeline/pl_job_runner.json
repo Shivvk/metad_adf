@@ -169,6 +169,7 @@
 								"secureOutput": false,
 								"secureInput": false
 							},
+							"userProperties": [],
 							"typeProperties": {
 								"variableName": "v_task_log",
 								"value": {
@@ -393,7 +394,14 @@
 								"secureOutput": false,
 								"secureInput": false
 							},
-							"userProperties": []
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "v_task_status",
+								"value": {
+									"value": "@activity('check_prior_task_status').output.value",
+									"type": "Expression"
+								}
+							}
 						},
 						{
 							"name": "set failure",
@@ -410,7 +418,11 @@
 								"secureOutput": false,
 								"secureInput": false
 							},
-							"userProperties": []
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "v_task_status",
+								"value": "failed"
+							}
 						}
 					]
 				}
@@ -426,7 +438,11 @@
 						]
 					}
 				],
-				"userProperties": []
+				"userProperties": [],
+				"typeProperties": {
+					"message": "failed_pipeline",
+					"errorCode": "failed_pipeline"
+				}
 			}
 		],
 		"parameters": {
